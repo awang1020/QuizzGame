@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100 min-h-screen;
+}
+
+a {
+  @apply text-primary underline-offset-4 hover:text-primary-light;
+}
+
+button:focus-visible,
+input:focus-visible {
+  @apply outline-none ring-2 ring-primary-light ring-offset-2 ring-offset-slate-950;
+}
