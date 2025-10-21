@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { creators } from "@/data/creators";
 import { useQuiz } from "@/context/QuizContext";
+import { useUser } from "@/context/UserContext";
 
 const iconStyles = [
   "from-sky-400/80 via-blue-500/70 to-indigo-500/80",
@@ -44,9 +46,10 @@ function formatDuration(seconds?: number) {
 export default function QuizSelection() {
   const router = useRouter();
   const { quizzes, startQuiz, currentQuiz, hasOngoingSession, isQuizComplete, hasStarted } = useQuiz();
+  const { user, toggleLikeQuiz, toggleFollowCreator, openAuthDialog } = useUser();
 
   const orderedQuizzes = useMemo(() => {
-    return [...quizzes].sort((a, b) => a.level - b.level);
+    return [...quizzes].sort((a, b) => (a.level ?? Number.MAX_SAFE_INTEGER) - (b.level ?? Number.MAX_SAFE_INTEGER));
   }, [quizzes]);
 
   if (orderedQuizzes.length === 0) {
@@ -90,6 +93,42 @@ export default function QuizSelection() {
   const handleStart = (quizId: string) => {
     startQuiz(quizId);
     router.push("/quiz");
+  };
+
+  const handleVisibilityToggle = (quizId: string, isCurrentlyPublic: boolean) => {
+    const nextVisibility = !isCurrentlyPublic;
+    setQuizVisibility(quizId, nextVisibility);
+    if (!nextVisibility && copiedQuizId === quizId) {
+      setCopiedQuizId(null);
+    }
+  };
+
+  const handleCopyLink = async (quizId: string) => {
+    const shareLink = getShareLink(quizId);
+    if (!shareLink) return;
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareLink);
+      } else if (typeof document !== "undefined") {
+        const textarea = document.createElement("textarea");
+        textarea.value = shareLink;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "absolute";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+
+      setCopiedQuizId(quizId);
+      window.setTimeout(() => {
+        setCopiedQuizId((prev) => (prev === quizId ? null : prev));
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to copy quiz share link", error);
+    }
   };
 
   return (
@@ -140,6 +179,10 @@ export default function QuizSelection() {
             const isRecommended = recommendedQuiz?.id === quiz.id;
             const isActive = hasOngoingSession && currentQuiz?.id === quiz.id;
             const isComplete = completedLevels >= quiz.level;
+            const shareConfig = shareSettings[quiz.id] ?? { isPublic: false };
+            const shareLink = getShareLink(quiz.id);
+            const isPublic = shareConfig.isPublic;
+            const isCopied = copiedQuizId === quiz.id;
 
             return (
               <article
@@ -150,13 +193,13 @@ export default function QuizSelection() {
                 }`}
               >
                 <div className="flex flex-col gap-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <DifficultyIcon index={index} />
-                    <div className="flex flex-col items-end gap-2 text-right">
-                      <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
-                        Level {quiz.level}
+                    <div className="flex items-start justify-between gap-4">
+                      <DifficultyIcon index={index} />
+                      <div className="flex flex-col items-end gap-2 text-right">
+                        <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+                        Level {displayLevel}
                         <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-100">
-                          {quiz.difficulty}
+                          {quiz.difficulty ?? "custom"}
                         </span>
                       </span>
                       {isRecommended ? (
@@ -183,8 +226,17 @@ export default function QuizSelection() {
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Focus area</p>
-                    <p className="mt-2 text-sm text-slate-200">{quiz.focusArea}</p>
-                    <p className="mt-3 text-xs text-slate-400">{quiz.recommendedFor}</p>
+                    <p className="mt-2 text-sm text-slate-200">{quiz.focusArea ?? "Quiz personnalisé"}</p>
+                    <p className="mt-3 text-xs text-slate-400">{quiz.recommendedFor ?? "Partagez ce quiz avec votre audience"}</p>
+                    {quiz.tags && quiz.tags.length > 0 ? (
+                      <p className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase tracking-wide text-primary-light">
+                        {quiz.tags.map((tag) => (
+                          <span key={tag} className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5">
+                            #{tag}
+                          </span>
+                        ))}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -253,6 +305,155 @@ export default function QuizSelection() {
                       <path d="m9 18 6-6-6-6" />
                     </svg>
                   </button>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Sharing</p>
+                          <p className="text-xs text-slate-300">
+                            {isPublic
+                              ? "Public — anyone with the link can join"
+                              : "Private — only visible to you"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleVisibilityToggle(quiz.id, isPublic)}
+                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
+                            isPublic
+                              ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-200"
+                              : "border-white/20 bg-white/10 text-slate-200"
+                          }`}
+                        >
+                          {isPublic ? "Public" : "Private"}
+                        </button>
+                      </div>
+                      {isPublic && shareLink ? (
+                        <div className="space-y-3">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <span
+                              className="flex-1 truncate rounded-lg bg-slate-950/60 px-3 py-2 text-left text-xs font-medium text-slate-200"
+                              title={shareLink}
+                            >
+                              {shareLink}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyLink(quiz.id)}
+                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-100 transition hover:border-primary/60 hover:text-white"
+                            >
+                              {isCopied ? "Copied" : "Copy link"}
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="h-4 w-4"
+                                aria-hidden="true"
+                              >
+                                <rect x="9" y="9" width="13" height="13" rx="2" />
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                              </svg>
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-400">
+                            Send this link to teammates to invite them to the quiz.
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400">
+                          Make the quiz public to generate a shareable invite link.
+                        </p>
+                      )}
+                  <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-white bg-gradient-to-br ${
+                            creator?.avatarColor ?? "from-slate-500 to-slate-700"
+                          }`}
+                          aria-hidden="true"
+                        >
+                          {creator?.avatarInitials ?? "QQ"}
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            {creator?.name ?? "Créateur invité"}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {creator?.role ?? "Expert Fabric"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!creator) return;
+                          if (!user) {
+                            openAuthDialog();
+                            return;
+                          }
+                          if (isOwnCreator) return;
+                          toggleFollowCreator(creator.id);
+                        }}
+                        disabled={isOwnCreator}
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-1 text-xs font-semibold uppercase tracking-wider transition ${
+                          isFollowingCreator
+                            ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-200"
+                            : "border-white/10 bg-white/5 text-slate-100 hover:border-primary/50 hover:text-white"
+                        } ${isOwnCreator ? "opacity-50" : ""}`.trim()}
+                      >
+                        {isOwnCreator ? "Vous" : isFollowingCreator ? "Suivi" : "Suivre"}
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <button
+                        type="button"
+                        onClick={() => handleStart(quiz.id)}
+                        aria-label={`Start the ${quiz.title} quiz`}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                      >
+                        {isActive ? "Resume quiz" : "Start quiz"}
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4"
+                          aria-hidden="true"
+                        >
+                          <path d="m9 18 6-6-6-6" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!user) {
+                            openAuthDialog();
+                            return;
+                          }
+                          toggleLikeQuiz(quiz.id);
+                        }}
+                        aria-pressed={isLiked}
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                          isLiked
+                            ? "border-rose-400/60 bg-rose-500/10 text-rose-100"
+                            : "border-white/10 bg-white/5 text-slate-100 hover:border-primary/50 hover:text-white"
+                        }`}
+                      >
+                        <span aria-hidden>{isLiked ? "❤️" : "🤍"}</span>
+                        <span>
+                          {likeTotal} {likeTotal > 1 ? "likes" : "like"}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </article>
             );

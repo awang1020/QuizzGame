@@ -1,4 +1,4 @@
-import type { Question, Quiz } from "@/context/QuizContext";
+import type { Question, QuizDefinition } from "@/context/QuizContext";
 
 const fabricQuestionBank: Question[] = [
   {
@@ -774,6 +774,10 @@ const createQuiz = ({
   range,
   accessCode,
   joinLink
+  creatorId,
+  communityLikes,
+  tags,
+  range
 }: {
   id: string;
   title: string;
@@ -783,6 +787,9 @@ const createQuiz = ({
   difficulty: Quiz["difficulty"];
   duration: number;
   recommendedFor: string;
+  creatorId: Quiz["creatorId"];
+  communityLikes: Quiz["communityLikes"];
+  tags?: Quiz["tags"];
   range: [number, number];
   accessCode: string;
   joinLink: string;
@@ -797,10 +804,13 @@ const createQuiz = ({
   recommendedFor,
   accessCode,
   joinLink,
+  creatorId,
+  communityLikes,
+  tags: tags ?? [],
   questions: buildQuizQuestions(range[0], range[1], id)
 });
 
-export const quizzes: Quiz[] = [
+export const quizzes: QuizDefinition[] = [
   createQuiz({
     id: "fabric-foundations",
     title: "Fabric Foundations",
@@ -814,6 +824,10 @@ export const quizzes: Quiz[] = [
     range: [0, 8],
     accessCode: "482913",
     joinLink: "https://quizzyquizz.app/join/fabric-foundations"
+    creatorId: "creator-amelia",
+    communityLikes: 186,
+    tags: ["fabric", "onelake", "governance"],
+    range: [0, 8]
   }),
   createQuiz({
     id: "fabric-practitioner",
@@ -828,6 +842,10 @@ export const quizzes: Quiz[] = [
     range: [8, 16],
     accessCode: "735204",
     joinLink: "https://quizzyquizz.app/join/fabric-practitioner"
+    creatorId: "creator-ethan",
+    communityLikes: 247,
+    tags: ["automation", "governance", "analytics"],
+    range: [8, 16]
   }),
   createQuiz({
     id: "fabric-expert",
@@ -842,5 +860,9 @@ export const quizzes: Quiz[] = [
     range: [16, fabricQuestionBank.length],
     accessCode: "951776",
     joinLink: "https://quizzyquizz.app/join/fabric-expert"
+    creatorId: "creator-zoe",
+    communityLikes: 312,
+    tags: ["architecture", "realtime", "scale"],
+    range: [16, fabricQuestionBank.length]
   })
 ];
