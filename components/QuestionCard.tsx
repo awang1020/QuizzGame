@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MediaResource, QuestionType } from "@/context/QuizContext";
 import { useQuiz } from "@/context/QuizContext";
 
@@ -39,26 +39,40 @@ export default function QuestionCard({ questionId, onAnswered }: Props) {
   const [openAnswer, setOpenAnswer] = useState<string>(storedResponse?.freeformText ?? "");
   const [feedback, setFeedback] = useState<string | null>(storedResponse ? getFeedback(storedResponse) : null);
   const [remainingTime, setRemainingTime] = useState<number | null>(question?.timeLimit ?? null);
+  const startTimestampRef = useRef<number | null>(null);
 
   const hasSubmitted = Boolean(storedResponse);
 
+  const computeElapsedSeconds = useCallback(() => {
+    if (question?.timeLimit && remainingTime !== null) {
+      return Math.max(0, question.timeLimit - remainingTime);
+    }
+    if (startTimestampRef.current) {
+      return Math.max(0, Math.round((Date.now() - startTimestampRef.current) / 1000));
+    }
+    return 0;
+  }, [question?.timeLimit, remainingTime]);
+
   const handleTimeExpired = useCallback(() => {
     if (!question || hasSubmitted) return;
+    const elapsedSeconds = computeElapsedSeconds();
     const response = submitAnswer(question.id, {
       selectedOptionIds: question.type === "open" ? [] : selectedOptionIds,
       freeformText: question.type === "open" ? openAnswer.trim() : undefined,
-      timedOut: true
+      timedOut: true,
+      timeTakenSeconds: elapsedSeconds
     });
     if (response) {
       setFeedback("Time's up! Review the explanation and try again later.");
     }
-  }, [hasSubmitted, openAnswer, question, selectedOptionIds, submitAnswer]);
+  }, [computeElapsedSeconds, hasSubmitted, openAnswer, question, selectedOptionIds, submitAnswer]);
 
   useEffect(() => {
     setSelectedOptionIds(storedResponse?.selectedOptionIds ?? []);
     setOpenAnswer(storedResponse?.freeformText ?? "");
     setFeedback(storedResponse ? getFeedback(storedResponse) : null);
     setRemainingTime(question?.timeLimit ?? null);
+    startTimestampRef.current = Date.now();
   }, [question?.timeLimit, questionId, storedResponse]);
 
   useEffect(() => {
@@ -67,6 +81,7 @@ export default function QuestionCard({ questionId, onAnswered }: Props) {
     }
 
     setRemainingTime(question.timeLimit);
+    startTimestampRef.current = Date.now();
 
     const interval = window.setInterval(() => {
       setRemainingTime((prev) => {
@@ -108,14 +123,19 @@ export default function QuestionCard({ questionId, onAnswered }: Props) {
   const handleSubmit = () => {
     if (question.type === "open") {
       if (!openAnswer.trim()) return;
-      const response = submitAnswer(question.id, { freeformText: openAnswer.trim() });
+      const elapsedSeconds = computeElapsedSeconds();
+      const response = submitAnswer(question.id, {
+        freeformText: openAnswer.trim(),
+        timeTakenSeconds: elapsedSeconds
+      });
       if (!response) return;
       setFeedback(getFeedback(response));
       return;
     }
 
     if (selectedOptionIds.length === 0) return;
-    const response = submitAnswer(question.id, { selectedOptionIds });
+    const elapsedSeconds = computeElapsedSeconds();
+    const response = submitAnswer(question.id, { selectedOptionIds, timeTakenSeconds: elapsedSeconds });
     if (!response) return;
     setFeedback(getFeedback(response));
   };
