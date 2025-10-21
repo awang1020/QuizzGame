@@ -61,22 +61,26 @@ export default function QuestionCard({ questionId, onAnswered }: Props) {
         {question.options.map((option) => {
           const isSelected = selectedOptionIds.includes(option.id);
           const response = responses[question.id];
-          const isCorrectOption = response && response.correctOptionIds.includes(option.id);
           const showCorrectness = response !== undefined;
+          const isCorrectOption = response && response.correctOptionIds.includes(option.id);
+          const isCorrectSelection = Boolean(showCorrectness && response?.isCorrect && isSelected);
+          const isIncorrectSelection = Boolean(showCorrectness && !isCorrectOption && isSelected);
+          const shouldRevealCorrectOption = Boolean(showCorrectness && !response?.isCorrect && isCorrectOption);
+
+          const baseStyles = "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition";
+          const defaultStyles = isSelected ? "border-primary bg-primary/10" : "border-white/5 hover:border-primary/40";
+          const stateStyles = isCorrectSelection
+            ? "border-emerald-400/70 bg-emerald-500/15 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]"
+            : isIncorrectSelection
+              ? "border-rose-400/60 bg-rose-500/10"
+              : shouldRevealCorrectOption
+                ? "border-emerald-400/40 bg-emerald-400/5"
+                : "";
+
           return (
             <label
               key={option.id}
-              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
-                isSelected ? "border-primary bg-primary/10" : "border-white/5 hover:border-primary/40"
-              } ${
-                showCorrectness
-                  ? isCorrectOption
-                    ? "border-emerald-400/60 bg-emerald-400/10"
-                    : isSelected
-                      ? "border-rose-400/60 bg-rose-400/10"
-                      : ""
-                  : ""
-              }`}
+              className={`${baseStyles} ${defaultStyles} ${stateStyles}`.trim()}
             >
               <input
                 type={question.type === "single" ? "radio" : "checkbox"}
@@ -87,7 +91,17 @@ export default function QuestionCard({ questionId, onAnswered }: Props) {
                 disabled={hasSubmitted}
                 className="mt-1 h-4 w-4 shrink-0 accent-primary"
               />
-              <span className="text-left text-base text-slate-100">{option.text}</span>
+              <span
+                className={`text-left text-base ${
+                  isCorrectSelection
+                    ? "font-semibold text-emerald-50"
+                    : isIncorrectSelection
+                      ? "text-rose-100"
+                      : "text-slate-100"
+                }`}
+              >
+                {option.text}
+              </span>
             </label>
           );
         })}
