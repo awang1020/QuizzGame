@@ -28,6 +28,8 @@ export type Quiz = {
   difficulty: QuizDifficulty;
   focusArea: string;
   recommendedFor: string;
+  accessCode: string;
+  joinLink: string;
   questions: Question[];
 };
 

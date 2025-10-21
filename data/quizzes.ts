@@ -771,7 +771,9 @@ const createQuiz = ({
   difficulty,
   duration,
   recommendedFor,
-  range
+  range,
+  accessCode,
+  joinLink
 }: {
   id: string;
   title: string;
@@ -782,6 +784,8 @@ const createQuiz = ({
   duration: number;
   recommendedFor: string;
   range: [number, number];
+  accessCode: string;
+  joinLink: string;
 }): Quiz => ({
   id,
   title,
@@ -791,6 +795,8 @@ const createQuiz = ({
   difficulty,
   duration,
   recommendedFor,
+  accessCode,
+  joinLink,
   questions: buildQuizQuestions(range[0], range[1], id)
 });
 
@@ -805,7 +811,9 @@ export const quizzes: Quiz[] = [
     difficulty: "beginner",
     duration: 900,
     recommendedFor: "New to Fabric or migrating from legacy analytics stacks.",
-    range: [0, 8]
+    range: [0, 8],
+    accessCode: "482913",
+    joinLink: "https://quizzyquizz.app/join/fabric-foundations"
   }),
   createQuiz({
     id: "fabric-practitioner",
@@ -817,7 +825,9 @@ export const quizzes: Quiz[] = [
     difficulty: "intermediate",
     duration: 1500,
     recommendedFor: "Teams deploying Fabric at scale and refining operational excellence.",
-    range: [8, 16]
+    range: [8, 16],
+    accessCode: "735204",
+    joinLink: "https://quizzyquizz.app/join/fabric-practitioner"
   }),
   createQuiz({
     id: "fabric-expert",
@@ -829,6 +839,8 @@ export const quizzes: Quiz[] = [
     difficulty: "advanced",
     duration: 2100,
     recommendedFor: "Leaders architecting complex Fabric solutions with high governance requirements.",
-    range: [16, fabricQuestionBank.length]
+    range: [16, fabricQuestionBank.length],
+    accessCode: "951776",
+    joinLink: "https://quizzyquizz.app/join/fabric-expert"
   })
 ];
