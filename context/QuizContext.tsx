@@ -41,6 +41,12 @@ export type QuizDefinition = {
   title: string;
   description: string;
   duration?: number;
+  level: number;
+  difficulty: QuizDifficulty;
+  focusArea: string;
+  recommendedFor: string;
+  accessCode: string;
+  joinLink: string;
   level?: number;
   difficulty?: QuizDifficulty;
   focusArea?: string;

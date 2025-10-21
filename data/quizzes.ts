@@ -771,6 +771,9 @@ const createQuiz = ({
   difficulty,
   duration,
   recommendedFor,
+  range,
+  accessCode,
+  joinLink
   creatorId,
   communityLikes,
   tags,
@@ -788,6 +791,8 @@ const createQuiz = ({
   communityLikes: Quiz["communityLikes"];
   tags?: Quiz["tags"];
   range: [number, number];
+  accessCode: string;
+  joinLink: string;
 }): Quiz => ({
   id,
   title,
@@ -797,6 +802,8 @@ const createQuiz = ({
   difficulty,
   duration,
   recommendedFor,
+  accessCode,
+  joinLink,
   creatorId,
   communityLikes,
   tags: tags ?? [],
@@ -814,6 +821,9 @@ export const quizzes: QuizDefinition[] = [
     difficulty: "beginner",
     duration: 900,
     recommendedFor: "New to Fabric or migrating from legacy analytics stacks.",
+    range: [0, 8],
+    accessCode: "482913",
+    joinLink: "https://quizzyquizz.app/join/fabric-foundations"
     creatorId: "creator-amelia",
     communityLikes: 186,
     tags: ["fabric", "onelake", "governance"],
@@ -829,6 +839,9 @@ export const quizzes: QuizDefinition[] = [
     difficulty: "intermediate",
     duration: 1500,
     recommendedFor: "Teams deploying Fabric at scale and refining operational excellence.",
+    range: [8, 16],
+    accessCode: "735204",
+    joinLink: "https://quizzyquizz.app/join/fabric-practitioner"
     creatorId: "creator-ethan",
     communityLikes: 247,
     tags: ["automation", "governance", "analytics"],
@@ -844,6 +857,9 @@ export const quizzes: QuizDefinition[] = [
     difficulty: "advanced",
     duration: 2100,
     recommendedFor: "Leaders architecting complex Fabric solutions with high governance requirements.",
+    range: [16, fabricQuestionBank.length],
+    accessCode: "951776",
+    joinLink: "https://quizzyquizz.app/join/fabric-expert"
     creatorId: "creator-zoe",
     communityLikes: 312,
     tags: ["architecture", "realtime", "scale"],
