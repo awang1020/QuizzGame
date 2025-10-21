@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { quizzes } from "@/data/quizzes";
 import { quizzes as defaultQuizDefinitions } from "@/data/quizzes";
 
 export type MediaType = "image" | "video" | "gif" | "link";
@@ -73,6 +74,11 @@ type Response = {
   timedOut?: boolean;
 };
 
+type ShareConfig = {
+  isPublic: boolean;
+  shareToken?: string;
+};
+
 type QuizContextValue = {
   quizzes: Quiz[];
   customQuizzes: Quiz[];
@@ -84,6 +90,9 @@ type QuizContextValue = {
   hasStarted: boolean;
   isRestored: boolean;
   hasOngoingSession: boolean;
+  shareSettings: Record<string, ShareConfig>;
+  startQuiz: (quizId: string) => void;
+  submitAnswer: (questionId: string, selectedOptionIds: string[]) => Response | undefined;
   startQuiz: (quizId: string) => boolean;
   submitAnswer: (questionId: string, payload: SubmitAnswerPayload) => Response | undefined;
   goToNextQuestion: () => void;
@@ -92,6 +101,8 @@ type QuizContextValue = {
   totalQuestions: number;
   totalAvailablePoints: number;
   isQuizComplete: boolean;
+  setQuizVisibility: (quizId: string, isPublic: boolean) => void;
+  getShareLink: (quizId: string) => string | undefined;
   createQuiz: (quiz: Omit<QuizDefinition, "id"> & { id?: string }) => Quiz;
   updateQuiz: (quizId: string, update: Partial<QuizDefinition>) => Quiz | undefined;
   deleteQuiz: (quizId: string) => void;
@@ -130,6 +141,32 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
   const [responses, setResponses] = useState<Record<string, Response>>({});
   const [hasStarted, setHasStarted] = useState(false);
   const [isRestored, setIsRestored] = useState(false);
+  const [shareSettings, setShareSettings] = useState<Record<string, ShareConfig>>({});
+  const [hasHydratedSharing, setHasHydratedSharing] = useState(false);
+
+  useEffect(() => {
+    setShareSettings((prev) => {
+      let hasChanges = false;
+      const next: Record<string, ShareConfig> = { ...prev };
+
+      quizzes.forEach((quiz) => {
+        if (!next[quiz.id]) {
+          next[quiz.id] = { isPublic: false };
+          hasChanges = true;
+        }
+      });
+
+      const quizIds = new Set(quizzes.map((quiz) => quiz.id));
+      Object.keys(next).forEach((quizId) => {
+        if (!quizIds.has(quizId)) {
+          delete next[quizId];
+          hasChanges = true;
+        }
+      });
+
+      return hasChanges ? next : prev;
+    });
+  }, [quizzes]);
   const [questionDurations, setQuestionDurations] = useState<Record<string, number>>({});
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null);
@@ -334,6 +371,82 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("quizzyquizz-progress", JSON.stringify(state));
   }, [currentQuizId, currentQuestionIndex, hasStarted, isRestored, questionOrder, responses]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || hasHydratedSharing) {
+      return;
+    }
+
+    try {
+      const rawSharing = localStorage.getItem("quizzyquizz-sharing");
+      if (!rawSharing) {
+        setHasHydratedSharing(true);
+        return;
+      }
+
+      const parsed = JSON.parse(rawSharing) as Record<string, ShareConfig>;
+      setShareSettings((prev) => {
+        const merged: Record<string, ShareConfig> = { ...prev };
+        Object.entries(parsed).forEach(([quizId, config]) => {
+          if (!quizzes.some((quiz) => quiz.id === quizId)) {
+            return;
+          }
+
+          const isPublic = Boolean(config?.isPublic);
+          merged[quizId] = {
+            isPublic,
+            shareToken: config?.shareToken ?? (isPublic ? createShareToken() : undefined)
+          };
+        });
+
+        return merged;
+      });
+    } catch (error) {
+      console.error("Failed to restore quiz sharing preferences", error);
+      localStorage.removeItem("quizzyquizz-sharing");
+    } finally {
+      setHasHydratedSharing(true);
+    }
+  }, [hasHydratedSharing, quizzes]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !hasHydratedSharing) {
+      return;
+    }
+
+    localStorage.setItem("quizzyquizz-sharing", JSON.stringify(shareSettings));
+  }, [hasHydratedSharing, shareSettings]);
+
+  const setQuizVisibility = useCallback((quizId: string, isPublic: boolean) => {
+    setShareSettings((prev) => {
+      const current = prev[quizId] ?? { isPublic: false };
+      const shareToken = isPublic ? current.shareToken ?? createShareToken() : current.shareToken;
+      return {
+        ...prev,
+        [quizId]: {
+          isPublic,
+          shareToken
+        }
+      };
+    });
+  }, []);
+
+  const getShareLink = useCallback(
+    (quizId: string) => {
+      const settings = shareSettings[quizId];
+      if (!settings?.isPublic || !settings.shareToken) {
+        return undefined;
+      }
+
+      const origin = typeof window === "undefined" ? "https://quizzyquizz.app" : window.location.origin;
+      return `${origin}/quiz/${quizId}?invite=${settings.shareToken}`;
+    },
+    [shareSettings]
+  );
+
+  const startQuiz = (quizId: string) => {
+    setCurrentQuizId(quizId);
+    setCurrentQuestionIndex(0);
+    setQuestionOrder(() => {
   const startQuiz = useCallback(
     (quizId: string) => {
       const quiz = quizzes.find((item) => item.id === quizId);
@@ -599,12 +712,16 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     hasStarted,
     isRestored,
     hasOngoingSession,
+    shareSettings,
     startQuiz,
     submitAnswer,
     goToNextQuestion,
     resetQuiz,
     score,
     totalQuestions,
+    isQuizComplete,
+    setQuizVisibility,
+    getShareLink
     totalAvailablePoints,
     isQuizComplete,
     createQuiz,
@@ -634,10 +751,12 @@ function shuffle<T>(items: T[]): T[] {
   return result;
 }
 
+function createShareToken() {
 function createSessionId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
 
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }

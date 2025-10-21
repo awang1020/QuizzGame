@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,6 +10,18 @@ import { useUser } from "@/context/UserContext";
 
 export default function ResultsSummary() {
   const router = useRouter();
+  const {
+    currentQuiz,
+    responses,
+    score,
+    totalQuestions,
+    resetQuiz,
+    startQuiz,
+    shareSettings,
+    setQuizVisibility,
+    getShareLink
+  } = useQuiz();
+  const [copied, setCopied] = useState(false);
   const { currentQuiz, responses, score, totalQuestions, totalAvailablePoints, resetQuiz, startQuiz } = useQuiz();
 
   const handleRetry = () => {
@@ -20,6 +33,42 @@ export default function ResultsSummary() {
   const handleBackHome = () => {
     resetQuiz();
     router.push("/");
+  };
+
+  const shareConfig = shareSettings[currentQuiz.id] ?? { isPublic: false };
+  const isPublic = shareConfig.isPublic;
+  const shareLink = getShareLink(currentQuiz.id);
+
+  const handleToggleVisibility = () => {
+    setQuizVisibility(currentQuiz.id, !isPublic);
+    if (isPublic) {
+      setCopied(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!shareLink) return;
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareLink);
+      } else if (typeof document !== "undefined") {
+        const textarea = document.createElement("textarea");
+        textarea.value = shareLink;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "absolute";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy quiz share link", error);
+    }
   };
 
   return (
@@ -67,6 +116,69 @@ export default function ResultsSummary() {
           >
             Back to landing
           </button>
+        </div>
+        <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 text-left">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Share &amp; collaborate</p>
+              <p className="text-sm text-slate-300">
+                {isPublic
+                  ? "Public — share the link below to invite teammates"
+                  : "Private — only visible to you until you share it"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleToggleVisibility}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
+                isPublic
+                  ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-200"
+                  : "border-white/20 bg-white/10 text-slate-200"
+              }`}
+            >
+              {isPublic ? "Public" : "Private"}
+            </button>
+          </div>
+          {isPublic && shareLink ? (
+            <div className="mt-4 space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <span
+                  className="flex-1 truncate rounded-lg bg-slate-950/60 px-3 py-2 text-left text-xs font-medium text-slate-200"
+                  title={shareLink}
+                >
+                  {shareLink}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-100 transition hover:border-primary/60 hover:text-white"
+                >
+                  {copied ? "Copied" : "Copy link"}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-xs text-slate-400">
+                Anyone with this link can access the quiz and track their own progress.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-4 text-xs text-slate-400">
+              Flip the visibility to public to generate an invite link for collaborators.
+            </p>
+          )}
         </div>
       </div>
       <section className="grid gap-4">

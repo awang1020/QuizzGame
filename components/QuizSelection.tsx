@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { creators } from "@/data/creators";
 import { useQuiz } from "@/context/QuizContext";
@@ -95,6 +95,42 @@ export default function QuizSelection() {
     router.push("/quiz");
   };
 
+  const handleVisibilityToggle = (quizId: string, isCurrentlyPublic: boolean) => {
+    const nextVisibility = !isCurrentlyPublic;
+    setQuizVisibility(quizId, nextVisibility);
+    if (!nextVisibility && copiedQuizId === quizId) {
+      setCopiedQuizId(null);
+    }
+  };
+
+  const handleCopyLink = async (quizId: string) => {
+    const shareLink = getShareLink(quizId);
+    if (!shareLink) return;
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareLink);
+      } else if (typeof document !== "undefined") {
+        const textarea = document.createElement("textarea");
+        textarea.value = shareLink;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "absolute";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+
+      setCopiedQuizId(quizId);
+      window.setTimeout(() => {
+        setCopiedQuizId((prev) => (prev === quizId ? null : prev));
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to copy quiz share link", error);
+    }
+  };
+
   return (
     <section id="quiz-catalog" className="w-full px-6 pb-24">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-12">
@@ -142,8 +178,11 @@ export default function QuizSelection() {
             const questionCount = quiz.questions.length;
             const isRecommended = recommendedQuiz?.id === quiz.id;
             const isActive = hasOngoingSession && currentQuiz?.id === quiz.id;
-            const displayLevel = quiz.level ?? index + 1;
-            const isComplete = completedLevels >= displayLevel;
+            const isComplete = completedLevels >= quiz.level;
+            const shareConfig = shareSettings[quiz.id] ?? { isPublic: false };
+            const shareLink = getShareLink(quiz.id);
+            const isPublic = shareConfig.isPublic;
+            const isCopied = copiedQuizId === quiz.id;
 
             return (
               <article
@@ -245,6 +284,90 @@ export default function QuizSelection() {
                       </div>
                     </div>
                   </dl>
+                  <button
+                    type="button"
+                    onClick={() => handleStart(quiz.id)}
+                    aria-label={`Start the ${quiz.title} quiz`}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  >
+                    {isActive ? "Resume quiz" : "Start quiz"}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </button>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Sharing</p>
+                          <p className="text-xs text-slate-300">
+                            {isPublic
+                              ? "Public — anyone with the link can join"
+                              : "Private — only visible to you"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleVisibilityToggle(quiz.id, isPublic)}
+                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
+                            isPublic
+                              ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-200"
+                              : "border-white/20 bg-white/10 text-slate-200"
+                          }`}
+                        >
+                          {isPublic ? "Public" : "Private"}
+                        </button>
+                      </div>
+                      {isPublic && shareLink ? (
+                        <div className="space-y-3">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <span
+                              className="flex-1 truncate rounded-lg bg-slate-950/60 px-3 py-2 text-left text-xs font-medium text-slate-200"
+                              title={shareLink}
+                            >
+                              {shareLink}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyLink(quiz.id)}
+                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-100 transition hover:border-primary/60 hover:text-white"
+                            >
+                              {isCopied ? "Copied" : "Copy link"}
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="h-4 w-4"
+                                aria-hidden="true"
+                              >
+                                <rect x="9" y="9" width="13" height="13" rx="2" />
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                              </svg>
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-400">
+                            Send this link to teammates to invite them to the quiz.
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400">
+                          Make the quiz public to generate a shareable invite link.
+                        </p>
+                      )}
                   <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-3">
