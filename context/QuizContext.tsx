@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { quizzes } from "@/data/quizzes";
 
 export type Option = {
@@ -38,6 +38,11 @@ type Response = {
   isCorrect: boolean;
 };
 
+type ShareConfig = {
+  isPublic: boolean;
+  shareToken?: string;
+};
+
 type QuizContextValue = {
   quizzes: Quiz[];
   currentQuiz: Quiz;
@@ -47,6 +52,7 @@ type QuizContextValue = {
   hasStarted: boolean;
   isRestored: boolean;
   hasOngoingSession: boolean;
+  shareSettings: Record<string, ShareConfig>;
   startQuiz: (quizId: string) => void;
   submitAnswer: (questionId: string, selectedOptionIds: string[]) => Response | undefined;
   goToNextQuestion: () => void;
@@ -54,6 +60,8 @@ type QuizContextValue = {
   score: number;
   totalQuestions: number;
   isQuizComplete: boolean;
+  setQuizVisibility: (quizId: string, isPublic: boolean) => void;
+  getShareLink: (quizId: string) => string | undefined;
 };
 
 const QuizContext = createContext<QuizContextValue | undefined>(undefined);
@@ -65,6 +73,32 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
   const [responses, setResponses] = useState<Record<string, Response>>({});
   const [hasStarted, setHasStarted] = useState(false);
   const [isRestored, setIsRestored] = useState(false);
+  const [shareSettings, setShareSettings] = useState<Record<string, ShareConfig>>({});
+  const [hasHydratedSharing, setHasHydratedSharing] = useState(false);
+
+  useEffect(() => {
+    setShareSettings((prev) => {
+      let hasChanges = false;
+      const next: Record<string, ShareConfig> = { ...prev };
+
+      quizzes.forEach((quiz) => {
+        if (!next[quiz.id]) {
+          next[quiz.id] = { isPublic: false };
+          hasChanges = true;
+        }
+      });
+
+      const quizIds = new Set(quizzes.map((quiz) => quiz.id));
+      Object.keys(next).forEach((quizId) => {
+        if (!quizIds.has(quizId)) {
+          delete next[quizId];
+          hasChanges = true;
+        }
+      });
+
+      return hasChanges ? next : prev;
+    });
+  }, [quizzes]);
 
   const currentQuiz = useMemo(() => {
     return quizzes.find((quiz) => quiz.id === currentQuizId) ?? quizzes[0];
@@ -181,6 +215,78 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("quizzyquizz-progress", JSON.stringify(state));
   }, [currentQuizId, currentQuestionIndex, hasStarted, isRestored, questionOrder, responses]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || hasHydratedSharing) {
+      return;
+    }
+
+    try {
+      const rawSharing = localStorage.getItem("quizzyquizz-sharing");
+      if (!rawSharing) {
+        setHasHydratedSharing(true);
+        return;
+      }
+
+      const parsed = JSON.parse(rawSharing) as Record<string, ShareConfig>;
+      setShareSettings((prev) => {
+        const merged: Record<string, ShareConfig> = { ...prev };
+        Object.entries(parsed).forEach(([quizId, config]) => {
+          if (!quizzes.some((quiz) => quiz.id === quizId)) {
+            return;
+          }
+
+          const isPublic = Boolean(config?.isPublic);
+          merged[quizId] = {
+            isPublic,
+            shareToken: config?.shareToken ?? (isPublic ? createShareToken() : undefined)
+          };
+        });
+
+        return merged;
+      });
+    } catch (error) {
+      console.error("Failed to restore quiz sharing preferences", error);
+      localStorage.removeItem("quizzyquizz-sharing");
+    } finally {
+      setHasHydratedSharing(true);
+    }
+  }, [hasHydratedSharing, quizzes]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !hasHydratedSharing) {
+      return;
+    }
+
+    localStorage.setItem("quizzyquizz-sharing", JSON.stringify(shareSettings));
+  }, [hasHydratedSharing, shareSettings]);
+
+  const setQuizVisibility = useCallback((quizId: string, isPublic: boolean) => {
+    setShareSettings((prev) => {
+      const current = prev[quizId] ?? { isPublic: false };
+      const shareToken = isPublic ? current.shareToken ?? createShareToken() : current.shareToken;
+      return {
+        ...prev,
+        [quizId]: {
+          isPublic,
+          shareToken
+        }
+      };
+    });
+  }, []);
+
+  const getShareLink = useCallback(
+    (quizId: string) => {
+      const settings = shareSettings[quizId];
+      if (!settings?.isPublic || !settings.shareToken) {
+        return undefined;
+      }
+
+      const origin = typeof window === "undefined" ? "https://quizzyquizz.app" : window.location.origin;
+      return `${origin}/quiz/${quizId}?invite=${settings.shareToken}`;
+    },
+    [shareSettings]
+  );
+
   const startQuiz = (quizId: string) => {
     setCurrentQuizId(quizId);
     setCurrentQuestionIndex(0);
@@ -249,13 +355,16 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     hasStarted,
     isRestored,
     hasOngoingSession,
+    shareSettings,
     startQuiz,
     submitAnswer,
     goToNextQuestion,
     resetQuiz,
     score,
     totalQuestions,
-    isQuizComplete
+    isQuizComplete,
+    setQuizVisibility,
+    getShareLink
   };
 
   return <QuizContext.Provider value={value}>{children}</QuizContext.Provider>;
@@ -277,4 +386,12 @@ function shuffle<T>(items: T[]): T[] {
     [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
   }
   return result;
+}
+
+function createShareToken() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
