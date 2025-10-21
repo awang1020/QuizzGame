@@ -8,6 +8,7 @@ export default function LandingHero() {
   const router = useRouter();
   const { quizzes, startQuiz, hasOngoingSession, isRestored } = useQuiz();
   const featuredQuiz = quizzes[0];
+  const totalQuestionCount = quizzes.reduce((sum, quiz) => sum + quiz.questions.length, 0);
 
   if (!featuredQuiz) {
     return null;
@@ -33,7 +34,7 @@ export default function LandingHero() {
         </h1>
         <p className="text-lg text-slate-300 sm:text-xl">
           QuizzyQuizz helps you launch engaging assessments with instant feedback, rich analytics,
-          and effortless authoring.
+          and effortless authoring—then lets learners choose the challenge that fits their goals.
         </p>
         <div className="flex flex-col items-center gap-4 md:flex-row">
           {isRestored && hasOngoingSession ? (
@@ -66,16 +67,19 @@ export default function LandingHero() {
             Learn how it works →
           </Link>
         </div>
+        <p className="text-sm text-slate-400">
+          Prefer a different challenge? Explore the quiz catalog below and jump straight into the topic that matters most.
+        </p>
       </div>
       <div
         id="how-it-works"
         className="grid gap-6 rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl shadow-primary/5 backdrop-blur"
       >
-        <h2 className="text-2xl font-semibold text-white">What&apos;s inside this quiz?</h2>
+        <h2 className="text-2xl font-semibold text-white">What&apos;s inside these quizzes?</h2>
         <ul className="grid gap-3 text-left text-slate-300">
           <li>
-            <strong className="text-white">{featuredQuiz.questions.length} curated questions</strong> covering the
-            fundamentals of modern web development.
+            <strong className="text-white">{totalQuestionCount} curated questions</strong> spanning multiple skill levels
+            and specialties.
           </li>
           <li>
             Adaptive feedback after every answer so learners know exactly what to improve next.
