@@ -43,10 +43,16 @@ export default function QuestionCard({ questionId, onAnswered }: Props) {
 
   const handleNext = () => {
     const isLastQuestion = currentQuestionIndex === totalQuestions - 1;
-    if (!isLastQuestion) {
-      goToNextQuestion();
+
+    if (isLastQuestion) {
+      onAnswered(true);
+      return;
     }
-    onAnswered(isLastQuestion);
+
+    setSelectedOptionIds([]);
+    setFeedback(null);
+    goToNextQuestion();
+    onAnswered(false);
   };
 
   const hasSubmitted = Boolean(feedback);
