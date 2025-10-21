@@ -771,6 +771,9 @@ const createQuiz = ({
   difficulty,
   duration,
   recommendedFor,
+  creatorId,
+  communityLikes,
+  tags,
   range
 }: {
   id: string;
@@ -781,6 +784,9 @@ const createQuiz = ({
   difficulty: Quiz["difficulty"];
   duration: number;
   recommendedFor: string;
+  creatorId: Quiz["creatorId"];
+  communityLikes: Quiz["communityLikes"];
+  tags?: Quiz["tags"];
   range: [number, number];
 }): Quiz => ({
   id,
@@ -791,6 +797,9 @@ const createQuiz = ({
   difficulty,
   duration,
   recommendedFor,
+  creatorId,
+  communityLikes,
+  tags: tags ?? [],
   questions: buildQuizQuestions(range[0], range[1], id)
 });
 
@@ -805,6 +814,9 @@ export const quizzes: QuizDefinition[] = [
     difficulty: "beginner",
     duration: 900,
     recommendedFor: "New to Fabric or migrating from legacy analytics stacks.",
+    creatorId: "creator-amelia",
+    communityLikes: 186,
+    tags: ["fabric", "onelake", "governance"],
     range: [0, 8]
   }),
   createQuiz({
@@ -817,6 +829,9 @@ export const quizzes: QuizDefinition[] = [
     difficulty: "intermediate",
     duration: 1500,
     recommendedFor: "Teams deploying Fabric at scale and refining operational excellence.",
+    creatorId: "creator-ethan",
+    communityLikes: 247,
+    tags: ["automation", "governance", "analytics"],
     range: [8, 16]
   }),
   createQuiz({
@@ -829,6 +844,9 @@ export const quizzes: QuizDefinition[] = [
     difficulty: "advanced",
     duration: 2100,
     recommendedFor: "Leaders architecting complex Fabric solutions with high governance requirements.",
+    creatorId: "creator-zoe",
+    communityLikes: 312,
+    tags: ["architecture", "realtime", "scale"],
     range: [16, fabricQuestionBank.length]
   })
 ];
