@@ -116,13 +116,20 @@ export default function QuestionCard({ questionId, onAnswered }: Props) {
           Submit answer
         </button>
         {hasSubmitted && (
-          <button
-            type="button"
-            onClick={handleNext}
-            className="text-sm font-semibold text-slate-200 transition hover:text-white"
-          >
-            {currentQuestionIndex === totalQuestions - 1 ? "View results" : "Next question"}
-          </button>
+          <div className="w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={handleNext}
+              className="group flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-primary/70 bg-slate-900/60 px-6 py-4 text-base font-semibold text-primary-light shadow-[0_12px_30px_-15px_rgba(56,189,248,0.7)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:bg-primary/15 hover:text-white hover:shadow-[0_18px_40px_-15px_rgba(56,189,248,0.9)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <span>
+                {currentQuestionIndex === totalQuestions - 1 ? "View results" : "Next question"}
+              </span>
+              <span aria-hidden className="text-lg transition-transform duration-200 group-hover:translate-x-1">
+                ➡️
+              </span>
+            </button>
+          </div>
         )}
       </div>
       {hasSubmitted && (
