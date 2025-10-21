@@ -6,7 +6,7 @@ import { useQuiz } from "@/context/QuizContext";
 
 export default function LandingHero() {
   const router = useRouter();
-  const { quizzes, startQuiz } = useQuiz();
+  const { quizzes, startQuiz, hasOngoingSession, isRestored } = useQuiz();
   const featuredQuiz = quizzes[0];
 
   if (!featuredQuiz) {
@@ -15,6 +15,10 @@ export default function LandingHero() {
 
   const handleStart = () => {
     startQuiz(featuredQuiz.id);
+    router.push("/quiz");
+  };
+
+  const handleContinue = () => {
     router.push("/quiz");
   };
 
@@ -32,12 +36,29 @@ export default function LandingHero() {
           and effortless authoring.
         </p>
         <div className="flex flex-col items-center gap-4 md:flex-row">
-          <button
-            onClick={handleStart}
-            className="w-full rounded-lg bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg shadow-primary/30 transition hover:bg-primary-dark md:w-auto"
-          >
-            Start the featured quiz
-          </button>
+          {isRestored && hasOngoingSession ? (
+            <>
+              <button
+                onClick={handleContinue}
+                className="w-full rounded-lg bg-emerald-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-600 md:w-auto"
+              >
+                Continue where you left off
+              </button>
+              <button
+                onClick={handleStart}
+                className="w-full rounded-lg border border-white/10 px-6 py-3 text-base font-semibold text-slate-100 transition hover:border-primary hover:text-white md:w-auto"
+              >
+                Start over
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleStart}
+              className="w-full rounded-lg bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg shadow-primary/30 transition hover:bg-primary-dark md:w-auto"
+            >
+              Start the featured quiz
+            </button>
+          )}
           <Link
             href="#how-it-works"
             className="text-base font-semibold text-slate-200 transition hover:text-white"
