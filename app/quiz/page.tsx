@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ProgressBar from "@/components/ProgressBar";
 import QuestionCard from "@/components/QuestionCard";
 import { useQuiz } from "@/context/QuizContext";
 
 export default function QuizPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedQuizId = searchParams.get("id");
   const {
     hasStarted,
     startQuiz,
@@ -21,10 +23,18 @@ export default function QuizPage() {
   useEffect(() => {
     if (!isRestored) return;
 
+    if (requestedQuizId && requestedQuizId !== currentQuiz.id) {
+      const started = startQuiz(requestedQuizId);
+      if (!started && !hasStarted) {
+        startQuiz(currentQuiz.id);
+      }
+      return;
+    }
+
     if (!hasStarted) {
       startQuiz(currentQuiz.id);
     }
-  }, [currentQuiz.id, hasStarted, isRestored, startQuiz]);
+  }, [currentQuiz.id, hasStarted, isRestored, requestedQuizId, startQuiz]);
 
   if (!isRestored) {
     return (
