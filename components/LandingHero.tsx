@@ -1,93 +1,225 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuiz } from "@/context/QuizContext";
 
 export default function LandingHero() {
   const router = useRouter();
-  const { quizzes, startQuiz, hasOngoingSession, isRestored } = useQuiz();
-  const featuredQuiz = quizzes[0];
-  const totalQuestionCount = quizzes.reduce((sum, quiz) => sum + quiz.questions.length, 0);
+  const {
+    quizzes,
+    startQuiz,
+    hasOngoingSession,
+    hasStarted,
+    isQuizComplete,
+    currentQuiz
+  } = useQuiz();
 
-  if (!featuredQuiz) {
+  const orderedQuizzes = useMemo(() => {
+    return [...quizzes].sort((a, b) => a.level - b.level);
+  }, [quizzes]);
+
+  if (orderedQuizzes.length === 0) {
     return null;
   }
 
-  const handleStart = () => {
-    startQuiz(featuredQuiz.id);
+  const totalQuestionCount = useMemo(() => {
+    return orderedQuizzes.reduce((sum, quiz) => sum + quiz.questions.length, 0);
+  }, [orderedQuizzes]);
+
+  const totalDurationMinutes = useMemo(() => {
+    const totalSeconds = orderedQuizzes.reduce((sum, quiz) => sum + (quiz.duration ?? 0), 0);
+    if (totalSeconds === 0) return 0;
+    return Math.round(totalSeconds / 60);
+  }, [orderedQuizzes]);
+
+  const currentIndex = useMemo(() => {
+    if (!currentQuiz) return -1;
+    return orderedQuizzes.findIndex((quiz) => quiz.id === currentQuiz.id);
+  }, [currentQuiz, orderedQuizzes]);
+
+  const recommendedQuiz = useMemo(() => {
+    if (orderedQuizzes.length === 0) return undefined;
+    if (!hasStarted) {
+      return orderedQuizzes[0];
+    }
+
+    const fallbackQuiz = orderedQuizzes[Math.max(0, currentIndex)] ?? orderedQuizzes[0];
+
+    if (hasOngoingSession) {
+      return currentQuiz ?? fallbackQuiz;
+    }
+
+    if (isQuizComplete) {
+      const nextQuiz = orderedQuizzes[Math.min(currentIndex + 1, orderedQuizzes.length - 1)];
+      return nextQuiz ?? fallbackQuiz;
+    }
+
+    return fallbackQuiz;
+  }, [currentIndex, currentQuiz, hasOngoingSession, hasStarted, isQuizComplete, orderedQuizzes]);
+
+  const completedLevels = useMemo(() => {
+    if (!hasStarted) return 0;
+    if (currentIndex < 0) return 0;
+    if (hasOngoingSession) return currentIndex;
+    return Math.min(orderedQuizzes.length, currentIndex + (isQuizComplete ? 1 : 0));
+  }, [currentIndex, hasOngoingSession, hasStarted, isQuizComplete, orderedQuizzes.length]);
+
+  const progressPercentage = orderedQuizzes.length === 0 ? 0 : Math.round((completedLevels / orderedQuizzes.length) * 100);
+
+  const handleStart = (quizId: string) => {
+    startQuiz(quizId);
     router.push("/quiz");
   };
 
-  const handleContinue = () => {
-    router.push("/quiz");
+  const handlePrimaryAction = () => {
+    if (hasOngoingSession) {
+      router.push("/quiz");
+      return;
+    }
+
+    if (recommendedQuiz) {
+      handleStart(recommendedQuiz.id);
+    }
   };
+
+  const heroSubtitle = recommendedQuiz
+    ? `Choose a starting point, then progress through ${orderedQuizzes.length} levels of Microsoft Fabric expertise.`
+    : "Choose a starting point and progress through each level of Microsoft Fabric expertise.";
 
   return (
-    <section className="mx-auto flex max-w-5xl flex-col gap-12 px-6 py-20 text-center md:text-left">
-      <div className="flex flex-col gap-6">
-        <span className="mx-auto inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1 text-sm font-semibold uppercase tracking-wide text-primary md:mx-0">
-          Master new skills faster
-        </span>
-        <h1 className="text-balance text-4xl font-bold tracking-tight text-white sm:text-5xl">
-          Interactive quizzes crafted for modern learning teams
-        </h1>
-        <p className="text-lg text-slate-300 sm:text-xl">
-          QuizzyQuizz helps you launch engaging assessments with instant feedback, rich analytics,
-          and effortless authoring—then lets learners choose the challenge that fits their goals.
-        </p>
-        <div className="flex flex-col items-center gap-4 md:flex-row">
-          {isRestored && hasOngoingSession ? (
-            <>
+    <section className="relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_55%)]" />
+      <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-96 w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl" />
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 py-20 md:py-24">
+        <div className="grid items-center gap-16 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          <div className="flex flex-col gap-8">
+            <span className="inline-flex max-w-max items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-primary/90 shadow-sm shadow-primary/30">
+              <span className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+              Fabric learning studio
+            </span>
+            <div className="space-y-4 text-balance">
+              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
+                Master Microsoft Fabric with guided quiz levels
+              </h1>
+              <p className="text-lg leading-relaxed text-slate-200 sm:text-xl">{heroSubtitle}</p>
+            </div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <button
-                onClick={handleContinue}
-                className="w-full rounded-lg bg-emerald-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-600 md:w-auto"
+                type="button"
+                onClick={handlePrimaryAction}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg shadow-primary/40 transition hover:-translate-y-0.5 hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
-                Continue where you left off
+                {hasOngoingSession ? "Continue training" : `Start ${recommendedQuiz?.title ?? "your training"}`}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5"
+                  aria-hidden="true"
+                >
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
               </button>
-              <button
-                onClick={handleStart}
-                className="w-full rounded-lg border border-white/10 px-6 py-3 text-base font-semibold text-slate-100 transition hover:border-primary hover:text-white md:w-auto"
+              <Link
+                href="#quiz-catalog"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-base font-semibold text-slate-100 transition hover:border-primary/50 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
-                Start over
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={handleStart}
-              className="w-full rounded-lg bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg shadow-primary/30 transition hover:bg-primary-dark md:w-auto"
-            >
-              Start the featured quiz
-            </button>
-          )}
-          <Link
-            href="#how-it-works"
-            className="text-base font-semibold text-slate-200 transition hover:text-white"
-          >
-            Learn how it works →
-          </Link>
+                Browse all quizzes
+                <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+            <dl className="grid gap-4 text-left text-sm text-slate-300 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
+                <dt className="text-xs uppercase tracking-wide text-slate-400">Question bank</dt>
+                <dd className="mt-1 text-lg font-semibold text-white">{totalQuestionCount} questions</dd>
+              </div>
+              <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
+                <dt className="text-xs uppercase tracking-wide text-slate-400">Learning path</dt>
+                <dd className="mt-1 text-lg font-semibold text-white">{orderedQuizzes.length} levels</dd>
+              </div>
+              <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
+                <dt className="text-xs uppercase tracking-wide text-slate-400">Total prep time</dt>
+                <dd className="mt-1 text-lg font-semibold text-white">
+                  {totalDurationMinutes ? `${totalDurationMinutes} min` : "Flexible"}
+                </dd>
+              </div>
+            </dl>
+          </div>
+          <aside className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/60 via-slate-900/30 to-slate-800/40 p-8 shadow-2xl shadow-primary/20 backdrop-blur">
+            <div className="absolute -right-24 -top-24 h-48 w-48 rounded-full bg-primary/30 blur-3xl" aria-hidden="true" />
+            <div className="relative flex flex-col gap-6">
+              <header className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Your Fabric journey</h2>
+                  <p className="text-sm text-slate-300">Track your momentum across each difficulty tier.</p>
+                </div>
+                <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-100">
+                  {progressPercentage}% complete
+                </span>
+              </header>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-white/10" role="presentation">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${progressPercentage}%` }}
+                  aria-hidden="true"
+                />
+              </div>
+              <ol className="space-y-4" aria-label="Microsoft Fabric quiz levels">
+                {orderedQuizzes.map((quiz) => {
+                  const isComplete = completedLevels >= quiz.level;
+                  const isActive = hasOngoingSession && currentQuiz?.id === quiz.id;
+                  const isRecommended = recommendedQuiz?.id === quiz.id && !isActive && !isComplete;
+                  return (
+                    <li
+                      key={quiz.id}
+                      className="flex items-start gap-4 rounded-2xl border border-white/5 bg-white/5 p-4"
+                    >
+                      <span
+                        className={`mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+                          isComplete
+                            ? "bg-emerald-500/20 text-emerald-200"
+                            : isActive
+                              ? "bg-primary/20 text-primary"
+                              : isRecommended
+                                ? "bg-amber-400/20 text-amber-200"
+                                : "bg-slate-700/60 text-slate-300"
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {quiz.level}
+                      </span>
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-white">
+                          {quiz.title}
+                          <span className="ml-2 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-200">
+                            {quiz.difficulty}
+                          </span>
+                        </p>
+                        <p className="text-xs text-slate-300">{quiz.focusArea}</p>
+                        {isRecommended ? (
+                          <p className="text-xs font-medium text-amber-200">Recommended next</p>
+                        ) : null}
+                        {isActive ? (
+                          <p className="text-xs font-medium text-primary">In progress</p>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+              <p className="text-xs leading-relaxed text-slate-400">
+                QuizzyQuizz is an independent training experience inspired by Microsoft Fabric. Complete quizzes sequentially to
+                unlock more advanced recommendations.
+              </p>
+            </div>
+          </aside>
         </div>
-        <p className="text-sm text-slate-400">
-          Prefer a different challenge? Explore the quiz catalog below and jump straight into the topic that matters most.
-        </p>
-      </div>
-      <div
-        id="how-it-works"
-        className="grid gap-6 rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl shadow-primary/5 backdrop-blur"
-      >
-        <h2 className="text-2xl font-semibold text-white">What&apos;s inside these quizzes?</h2>
-        <ul className="grid gap-3 text-left text-slate-300">
-          <li>
-            <strong className="text-white">{totalQuestionCount} curated questions</strong> spanning multiple skill levels
-            and specialties.
-          </li>
-          <li>
-            Adaptive feedback after every answer so learners know exactly what to improve next.
-          </li>
-          <li>
-            Built-in progress tracking and a beautiful results summary.
-          </li>
-        </ul>
       </div>
     </section>
   );

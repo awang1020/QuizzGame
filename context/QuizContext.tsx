@@ -17,11 +17,17 @@ export type Question = {
   explanation: string;
 };
 
+export type QuizDifficulty = "beginner" | "intermediate" | "advanced";
+
 export type Quiz = {
   id: string;
   title: string;
   description: string;
   duration?: number;
+  level: number;
+  difficulty: QuizDifficulty;
+  focusArea: string;
+  recommendedFor: string;
   questions: Question[];
 };
 
