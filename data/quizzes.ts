@@ -1,4 +1,4 @@
-import type { Question, Quiz } from "@/context/QuizContext";
+import type { Question, QuizDefinition } from "@/context/QuizContext";
 
 const fabricQuestionBank: Question[] = [
   {
@@ -794,7 +794,7 @@ const createQuiz = ({
   questions: buildQuizQuestions(range[0], range[1], id)
 });
 
-export const quizzes: Quiz[] = [
+export const quizzes: QuizDefinition[] = [
   createQuiz({
     id: "fabric-foundations",
     title: "Fabric Foundations",

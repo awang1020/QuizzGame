@@ -17,7 +17,7 @@ export default function LandingHero() {
   } = useQuiz();
 
   const orderedQuizzes = useMemo(() => {
-    return [...quizzes].sort((a, b) => a.level - b.level);
+    return [...quizzes].sort((a, b) => (a.level ?? Number.MAX_SAFE_INTEGER) - (b.level ?? Number.MAX_SAFE_INTEGER));
   }, [quizzes]);
 
   if (orderedQuizzes.length === 0) {
@@ -85,8 +85,8 @@ export default function LandingHero() {
   };
 
   const heroSubtitle = recommendedQuiz
-    ? `Choose a starting point, then progress through ${orderedQuizzes.length} levels of Microsoft Fabric expertise.`
-    : "Choose a starting point and progress through each level of Microsoft Fabric expertise.";
+    ? `Choisissez un point de départ, progressez à votre rythme et créez vos propres sessions pour engager votre audience.`
+    : "Concevez et lancez des quiz modernes en quelques clics pour dynamiser vos formations.";
 
   return (
     <section className="relative overflow-hidden">
@@ -133,6 +133,12 @@ export default function LandingHero() {
                 Browse all quizzes
                 <span aria-hidden="true">→</span>
               </Link>
+              <Link
+                href="/studio"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-6 py-3 text-base font-semibold text-primary-light transition hover:border-primary hover:bg-primary/15 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                Construire un quiz
+              </Link>
             </div>
             <dl className="grid gap-4 text-left text-sm text-slate-300 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
@@ -171,8 +177,9 @@ export default function LandingHero() {
                 />
               </div>
               <ol className="space-y-4" aria-label="Microsoft Fabric quiz levels">
-                {orderedQuizzes.map((quiz) => {
-                  const isComplete = completedLevels >= quiz.level;
+                {orderedQuizzes.map((quiz, index) => {
+                  const displayLevel = quiz.level ?? index + 1;
+                  const isComplete = completedLevels >= displayLevel;
                   const isActive = hasOngoingSession && currentQuiz?.id === quiz.id;
                   const isRecommended = recommendedQuiz?.id === quiz.id && !isActive && !isComplete;
                   return (
@@ -192,16 +199,16 @@ export default function LandingHero() {
                         }`}
                         aria-hidden="true"
                       >
-                        {quiz.level}
+                        {displayLevel}
                       </span>
                       <div className="space-y-1">
                         <p className="text-sm font-semibold text-white">
                           {quiz.title}
                           <span className="ml-2 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-200">
-                            {quiz.difficulty}
+                            {quiz.difficulty ?? "custom"}
                           </span>
                         </p>
-                        <p className="text-xs text-slate-300">{quiz.focusArea}</p>
+                        <p className="text-xs text-slate-300">{quiz.focusArea ?? "Quiz personnalisé"}</p>
                         {isRecommended ? (
                           <p className="text-xs font-medium text-amber-200">Recommended next</p>
                         ) : null}
@@ -214,8 +221,8 @@ export default function LandingHero() {
                 })}
               </ol>
               <p className="text-xs leading-relaxed text-slate-400">
-                QuizzyQuizz is an independent training experience inspired by Microsoft Fabric. Complete quizzes sequentially to
-                unlock more advanced recommendations.
+                QuizzyQuizz est une plateforme indépendante inspirée de l&apos;expérience Kahoot. Enchaînez les quiz existants ou
+                créez vos propres scénarios pour former, animer ou évaluer vos équipes.
               </p>
             </div>
           </aside>
