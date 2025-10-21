@@ -70,7 +70,7 @@ export default function QuestionCard({ questionId, onAnswered }: Props) {
           const baseStyles = "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition";
           const defaultStyles = isSelected ? "border-primary bg-primary/10" : "border-white/5 hover:border-primary/40";
           const stateStyles = isCorrectSelection
-            ? "border-emerald-400/70 bg-emerald-500/15 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]"
+            ? "border-emerald-400/80 bg-emerald-500/20 text-emerald-50 shadow-[0_0_0_1px_rgba(16,185,129,0.25)]"
             : isIncorrectSelection
               ? "border-rose-400/60 bg-rose-500/10"
               : shouldRevealCorrectOption
