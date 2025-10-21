@@ -5,10 +5,11 @@ QuizzyQuizz is a modern learning experience built with Next.js and Tailwind CSS.
 ## Features
 
 - **Responsive landing page** with a hero call-to-action and feature highlights.
-- **Interactive quiz runner** supporting single and multiple choice questions with contextual explanations.
-- **Real-time progress tracking** and end-of-quiz analytics for learners.
-- **Results dashboard** summarising score, question breakdowns, and retry/back-to-home actions.
-- **API-ready architecture** using Next.js App Router and API routes for scalable quiz data retrieval.
+- **Interactive quiz runner** supporting single, multiple, vrai/faux et réponses libres avec explications contextuelles.
+- **Quiz Studio** to create, duplicate, edit, tag and delete quizzes via a guided visual builder with rich media support.
+- **Real-time progress tracking** with per-question timers, points weighting and end-of-quiz analytics for learners.
+- **Results dashboard** summarising scores, detailed breakdowns and personalised feedback.
+- **Sharing tools** to copy a direct play link and launch sessions instantly from the studio.
 
 ## Project structure
 
@@ -47,13 +48,9 @@ QuizzyQuizz is a modern learning experience built with Next.js and Tailwind CSS.
 
 ## Extending the quiz catalogue
 
-Adding a new quiz is as simple as updating `data/quizzes.ts`:
+Adding a new quiz can now be done entirely from the **Studio** (`/studio/create`) by filling out the builder form. Each question can include rich media, points, time limits and different answer formats. Existing quizzes can also be duplicated and edited from `/studio` without touching the codebase.
 
-1. Append a new quiz object with a unique `id`, metadata, and an array of `questions`.
-2. Each question supports `single` or `multiple` choice via the `type` field. Set `isCorrect` on each option accordingly.
-3. The Next.js router automatically picks up `/quiz` and `/results` routes using the newly selected quiz.
-
-For dynamic data sources, replace the static array with a database or headless CMS call in `app/api/quizzes/route.ts`, then fetch the data inside the quiz context.
+For teams that prefer seeding default content via code, the static definitions still live in `data/quizzes.ts`. Replace the array with a database or headless CMS call in `app/api/quizzes/route.ts`, then fetch the data inside the quiz context.
 
 ## Available scripts
 

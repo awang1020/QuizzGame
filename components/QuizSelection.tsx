@@ -49,7 +49,7 @@ export default function QuizSelection() {
   const { user, toggleLikeQuiz, toggleFollowCreator, openAuthDialog } = useUser();
 
   const orderedQuizzes = useMemo(() => {
-    return [...quizzes].sort((a, b) => a.level - b.level);
+    return [...quizzes].sort((a, b) => (a.level ?? Number.MAX_SAFE_INTEGER) - (b.level ?? Number.MAX_SAFE_INTEGER));
   }, [quizzes]);
 
   if (orderedQuizzes.length === 0) {
@@ -142,12 +142,8 @@ export default function QuizSelection() {
             const questionCount = quiz.questions.length;
             const isRecommended = recommendedQuiz?.id === quiz.id;
             const isActive = hasOngoingSession && currentQuiz?.id === quiz.id;
-            const isComplete = completedLevels >= quiz.level;
-            const creator = creators.find((item) => item.id === quiz.creatorId);
-            const isLiked = Boolean(user?.likedQuizIds.includes(quiz.id));
-            const likeTotal = quiz.communityLikes + (isLiked ? 1 : 0);
-            const isFollowingCreator = creator ? Boolean(user?.followingCreatorIds.includes(creator.id)) : false;
-            const isOwnCreator = creator ? user?.id === creator.id : false;
+            const displayLevel = quiz.level ?? index + 1;
+            const isComplete = completedLevels >= displayLevel;
 
             return (
               <article
@@ -158,13 +154,13 @@ export default function QuizSelection() {
                 }`}
               >
                 <div className="flex flex-col gap-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <DifficultyIcon index={index} />
-                    <div className="flex flex-col items-end gap-2 text-right">
-                      <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
-                        Level {quiz.level}
+                    <div className="flex items-start justify-between gap-4">
+                      <DifficultyIcon index={index} />
+                      <div className="flex flex-col items-end gap-2 text-right">
+                        <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+                        Level {displayLevel}
                         <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-100">
-                          {quiz.difficulty}
+                          {quiz.difficulty ?? "custom"}
                         </span>
                       </span>
                       {isRecommended ? (
@@ -191,8 +187,17 @@ export default function QuizSelection() {
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Focus area</p>
-                    <p className="mt-2 text-sm text-slate-200">{quiz.focusArea}</p>
-                    <p className="mt-3 text-xs text-slate-400">{quiz.recommendedFor}</p>
+                    <p className="mt-2 text-sm text-slate-200">{quiz.focusArea ?? "Quiz personnalisé"}</p>
+                    <p className="mt-3 text-xs text-slate-400">{quiz.recommendedFor ?? "Partagez ce quiz avec votre audience"}</p>
+                    {quiz.tags && quiz.tags.length > 0 ? (
+                      <p className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase tracking-wide text-primary-light">
+                        {quiz.tags.map((tag) => (
+                          <span key={tag} className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5">
+                            #{tag}
+                          </span>
+                        ))}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
