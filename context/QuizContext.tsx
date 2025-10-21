@@ -126,6 +126,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
   const [customQuizzes, setCustomQuizzes] = useState<Quiz[]>([]);
   const [currentQuizId, setCurrentQuizId] = useState<string>(STATIC_QUIZZES[0]?.id ?? "");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [questionOrder, setQuestionOrder] = useState<string[]>([]);
   const [responses, setResponses] = useState<Record<string, Response>>({});
   const [hasStarted, setHasStarted] = useState(false);
   const [isRestored, setIsRestored] = useState(false);
@@ -174,9 +175,41 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentQuiz, quizzes]);
 
+  useEffect(() => {
+    if (!currentQuiz) return;
+
+    setQuestionOrder((prev) => {
+      const questionIds = currentQuiz.questions.map((question) => question.id);
+      const filtered = prev.filter((id) => questionIds.includes(id));
+
+      if (filtered.length === questionIds.length) {
+        return filtered;
+      }
+
+      if (hasStarted) {
+        return shuffle(questionIds);
+      }
+
+      return questionIds;
+    });
+  }, [currentQuiz, hasStarted]);
+
   const currentQuestion = useMemo(() => {
-    return currentQuiz?.questions[currentQuestionIndex];
-  }, [currentQuiz, currentQuestionIndex]);
+    if (!currentQuiz) return undefined;
+
+    const questions = currentQuiz.questions;
+    const normalizedOrder =
+      questionOrder.length === questions.length
+        ? questionOrder
+        : questions.map((question) => question.id);
+
+    const questionId = normalizedOrder[currentQuestionIndex];
+    if (!questionId) {
+      return questions[0];
+    }
+
+    return questions.find((question) => question.id === questionId);
+  }, [currentQuestionIndex, currentQuiz, questionOrder]);
 
   const totalQuestions = currentQuiz?.questions.length ?? 0;
 
@@ -207,6 +240,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
         currentQuestionIndex?: number;
         responses?: Record<string, Response>;
         hasStarted?: boolean;
+        questionOrder?: string[];
       };
 
       if (parsed.currentQuizId && quizzes.some((quiz) => quiz.id === parsed.currentQuizId)) {
@@ -219,6 +253,10 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
 
       if (parsed.responses) {
         setResponses(parsed.responses);
+      }
+
+      if (Array.isArray(parsed.questionOrder)) {
+        setQuestionOrder(parsed.questionOrder);
       }
 
       if (typeof parsed.hasStarted === "boolean") {
@@ -249,19 +287,26 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     const state = {
       currentQuizId,
       currentQuestionIndex,
+      questionOrder,
       responses,
       hasStarted
     };
 
-    localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(state));
-  }, [currentQuizId, currentQuestionIndex, hasStarted, isRestored, responses]);
+    localStorage.setItem("quizzyquizz-progress", JSON.stringify(state));
+  }, [currentQuizId, currentQuestionIndex, hasStarted, isRestored, questionOrder, responses]);
 
-  const startQuiz = useCallback(
-    (quizId: string) => {
-      const quizExists = quizzes.some((quiz) => quiz.id === quizId);
-      if (!quizExists) {
-        return false;
-      }
+  const startQuiz = (quizId: string) => {
+    setCurrentQuizId(quizId);
+    setCurrentQuestionIndex(0);
+    setQuestionOrder(() => {
+      const quiz = quizzes.find((item) => item.id === quizId);
+      if (!quiz) return [];
+
+      return shuffle(quiz.questions.map((question) => question.id));
+    });
+    setResponses({});
+    setHasStarted(true);
+  };
 
       setCurrentQuizId(quizId);
       setCurrentQuestionIndex(0);
@@ -276,6 +321,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     setResponses({});
     setCurrentQuestionIndex(0);
     setHasStarted(false);
+    setQuestionOrder([]);
     if (typeof window !== "undefined") {
       localStorage.removeItem(PROGRESS_STORAGE_KEY);
     }
@@ -462,4 +508,13 @@ export function useQuiz() {
   }
 
   return context;
+}
+
+function shuffle<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
+  }
+  return result;
 }
