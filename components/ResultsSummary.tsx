@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { useEffect, useRef } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 import { useQuiz } from "@/context/QuizContext";
-import { useUser } from "@/context/UserContext";
 
 export default function ResultsSummary() {
   const router = useRouter();
@@ -15,29 +13,35 @@ export default function ResultsSummary() {
     responses,
     score,
     totalQuestions,
+    totalAvailablePoints,
     resetQuiz,
     startQuiz,
     shareSettings,
     setQuizVisibility,
-    getShareLink
+    getShareLink,
+    sessionDurationSeconds,
+    averageQuestionTimeSeconds,
+    isQuizComplete
   } = useQuiz();
   const [copied, setCopied] = useState(false);
-  const { currentQuiz, responses, score, totalQuestions, totalAvailablePoints, resetQuiz, startQuiz } = useQuiz();
+
+  const answeredQuestions = useMemo(() => Object.keys(responses).length, [responses]);
+  const shareConfig = shareSettings[currentQuiz.id] ?? { isPublic: false };
+  const isPublic = shareConfig.isPublic;
+  const shareLink = getShareLink(currentQuiz.id);
 
   const handleRetry = () => {
     resetQuiz();
-    startQuiz(currentQuiz.id);
-    router.push("/quiz");
+    const started = startQuiz(currentQuiz.id);
+    if (started) {
+      router.push("/quiz");
+    }
   };
 
   const handleBackHome = () => {
     resetQuiz();
     router.push("/");
   };
-
-  const shareConfig = shareSettings[currentQuiz.id] ?? { isPublic: false };
-  const isPublic = shareConfig.isPublic;
-  const shareLink = getShareLink(currentQuiz.id);
 
   const handleToggleVisibility = () => {
     setQuizVisibility(currentQuiz.id, !isPublic);
@@ -48,7 +52,6 @@ export default function ResultsSummary() {
 
   const handleCopyLink = async () => {
     if (!shareLink) return;
-
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareLink);
@@ -63,13 +66,30 @@ export default function ResultsSummary() {
         document.execCommand("copy");
         document.body.removeChild(textarea);
       }
-
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error("Failed to copy quiz share link", error);
     }
   };
+
+  if (!isQuizComplete || answeredQuestions === 0) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] w-full max-w-4xl flex-col items-center justify-center gap-4 px-6 text-center">
+        <h1 className="text-3xl font-semibold text-white">Finish the quiz to view your results</h1>
+        <p className="text-sm text-slate-300">
+          Answer each question to unlock the full summary, explanations, and analytics for your attempt.
+        </p>
+        <button
+          type="button"
+          onClick={() => router.push("/quiz")}
+          className="rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition hover:bg-primary-dark"
+        >
+          Return to quiz
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto grid max-w-4xl gap-8 px-6 py-16">
@@ -83,34 +103,33 @@ export default function ResultsSummary() {
             {score} / {totalAvailablePoints}
           </p>
           <p className="text-sm text-slate-400">
-            That&apos;s {totalAvailablePoints === 0 ? 0 : Math.round((score / totalAvailablePoints) * 100)}% accuracy across {totalQuestions}{" "}
+            That&apos;s {totalAvailablePoints === 0 ? 0 : Math.round((score / totalAvailablePoints) * 100)}% accuracy across {totalQuestions}
+            {" "}
             question{totalQuestions === 1 ? "" : "s"}.
           </p>
         </div>
         <dl className="mt-8 grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left">
             <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Temps total</dt>
-            <dd className="mt-2 text-lg font-semibold text-white">
-              {sessionDurationSeconds !== null ? formatSeconds(sessionDurationSeconds) : "—"}
-            </dd>
+            <dd className="mt-2 text-lg font-semibold text-white">{formatSeconds(sessionDurationSeconds)}</dd>
             <p className="mt-1 text-xs text-slate-400">Durée cumulée pour l&apos;ensemble du quiz.</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left">
             <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Temps moyen / question</dt>
-            <dd className="mt-2 text-lg font-semibold text-white">
-              {averageQuestionTime > 0 ? formatSeconds(averageQuestionTime) : "—"}
-            </dd>
+            <dd className="mt-2 text-lg font-semibold text-white">{formatSeconds(averageQuestionTimeSeconds)}</dd>
             <p className="mt-1 text-xs text-slate-400">Basé sur le temps passé avant chaque soumission.</p>
           </div>
         </dl>
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <button
+            type="button"
             onClick={handleRetry}
             className="rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition hover:bg-primary-dark"
           >
             Retry quiz
           </button>
           <button
+            type="button"
             onClick={handleBackHome}
             className="rounded-lg border border-white/10 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-primary hover:text-white"
           >
@@ -122,9 +141,7 @@ export default function ResultsSummary() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Share &amp; collaborate</p>
               <p className="text-sm text-slate-300">
-                {isPublic
-                  ? "Public — share the link below to invite teammates"
-                  : "Private — only visible to you until you share it"}
+                {isPublic ? "Public — share the link below to invite teammates" : "Private — only visible to you until you share it"}
               </p>
             </div>
             <button
@@ -142,10 +159,7 @@ export default function ResultsSummary() {
           {isPublic && shareLink ? (
             <div className="mt-4 space-y-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <span
-                  className="flex-1 truncate rounded-lg bg-slate-950/60 px-3 py-2 text-left text-xs font-medium text-slate-200"
-                  title={shareLink}
-                >
+                <span className="flex-1 truncate rounded-lg bg-slate-950/60 px-3 py-2 text-left text-xs font-medium text-slate-200" title={shareLink}>
                   {shareLink}
                 </span>
                 <button
@@ -154,44 +168,25 @@ export default function ResultsSummary() {
                   className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-100 transition hover:border-primary/60 hover:text-white"
                 >
                   {copied ? "Copied" : "Copy link"}
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-4 w-4"
-                    aria-hidden="true"
-                  >
-                    <rect x="9" y="9" width="13" height="13" rx="2" />
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                  </svg>
+                  <span aria-hidden>🔗</span>
                 </button>
               </div>
-              <p className="text-xs text-slate-400">
-                Anyone with this link can access the quiz and track their own progress.
-              </p>
+              <p className="text-xs text-slate-400">Anyone with this link can access the quiz and track their own progress.</p>
             </div>
           ) : (
-            <p className="mt-4 text-xs text-slate-400">
-              Flip the visibility to public to generate an invite link for collaborators.
-            </p>
+            <p className="mt-4 text-xs text-slate-400">Flip the visibility to public to generate an invite link for collaborators.</p>
           )}
         </div>
       </div>
+
       <section className="grid gap-4">
         <h2 className="text-2xl font-semibold text-white">Question breakdown</h2>
         <div className="grid gap-4">
           {currentQuiz.questions.map((question, index) => {
             const response = responses[question.id];
-            const isCorrect = response?.isCorrect;
+            const isCorrect = response?.isCorrect ?? false;
             return (
-              <article
-                key={question.id}
-                className="rounded-2xl border border-white/10 bg-white/5 p-6 text-left shadow-lg shadow-black/10"
-              >
+              <article key={question.id} className="rounded-2xl border border-white/10 bg-white/5 p-6 text-left shadow-lg shadow-black/10">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-col gap-1">
                     <p className="text-xs uppercase tracking-wide text-slate-400">Question {index + 1}</p>
@@ -240,7 +235,7 @@ export default function ResultsSummary() {
                 ) : (
                   <ul className="mt-4 grid gap-2 text-sm text-slate-300">
                     {question.options.map((option) => {
-                      const isSelected = response?.selectedOptionIds.includes(option.id);
+                      const isSelected = response?.selectedOptionIds.includes(option.id) ?? false;
                       const isCorrectOption = option.isCorrect;
                       return (
                         <li
@@ -254,10 +249,10 @@ export default function ResultsSummary() {
                           }`}
                         >
                           {option.text}
-                          {isCorrectOption && <span className="ml-2 text-xs uppercase text-emerald-200">Correct</span>}
-                          {isSelected && !isCorrectOption && (
+                          {isCorrectOption ? <span className="ml-2 text-xs uppercase text-emerald-200">Correct</span> : null}
+                          {isSelected && !isCorrectOption ? (
                             <span className="ml-2 text-xs uppercase text-rose-200">Your choice</span>
-                          )}
+                          ) : null}
                         </li>
                       );
                     })}
@@ -281,17 +276,14 @@ export default function ResultsSummary() {
   );
 }
 
-function formatSeconds(value: number) {
-  if (!Number.isFinite(value)) {
+function formatSeconds(value: number | null) {
+  if (value === null || !Number.isFinite(value) || value < 0) {
     return "—";
   }
-
-  const rounded = Math.max(0, value);
-  if (rounded >= 60) {
-    const minutes = Math.floor(rounded / 60);
-    const seconds = Math.round(rounded % 60);
+  if (value >= 60) {
+    const minutes = Math.floor(value / 60);
+    const seconds = Math.round(value % 60);
     return `${minutes} min ${seconds.toString().padStart(2, "0")} s`;
   }
-
-  return `${rounded.toFixed(1)} s`;
+  return `${value.toFixed(1)} s`;
 }

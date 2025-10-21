@@ -45,8 +45,19 @@ function formatDuration(seconds?: number) {
 
 export default function QuizSelection() {
   const router = useRouter();
-  const { quizzes, startQuiz, currentQuiz, hasOngoingSession, isQuizComplete, hasStarted } = useQuiz();
+  const {
+    quizzes,
+    startQuiz,
+    currentQuiz,
+    hasOngoingSession,
+    isQuizComplete,
+    hasStarted,
+    shareSettings,
+    setQuizVisibility,
+    getShareLink
+  } = useQuiz();
   const { user, toggleLikeQuiz, toggleFollowCreator, openAuthDialog } = useUser();
+  const [copiedQuizId, setCopiedQuizId] = useState<string | null>(null);
 
   const orderedQuizzes = useMemo(() => {
     return [...quizzes].sort((a, b) => (a.level ?? Number.MAX_SAFE_INTEGER) - (b.level ?? Number.MAX_SAFE_INTEGER));
@@ -91,8 +102,10 @@ export default function QuizSelection() {
   const progressPercentage = Math.round((completedLevels / orderedQuizzes.length) * 100);
 
   const handleStart = (quizId: string) => {
-    startQuiz(quizId);
-    router.push("/quiz");
+    const started = startQuiz(quizId);
+    if (started) {
+      router.push("/quiz");
+    }
   };
 
   const handleVisibilityToggle = (quizId: string, isCurrentlyPublic: boolean) => {
@@ -142,8 +155,7 @@ export default function QuizSelection() {
             </span>
             <h2 className="text-3xl font-semibold text-white sm:text-4xl">Training designed for every stage</h2>
             <p className="text-base text-slate-300 sm:text-lg">
-              Begin with the fundamentals, then advance through governance, workloads, and enterprise rollouts. Each level builds
-              on the last with adaptive feedback and rich analytics.
+              Begin with the fundamentals, then advance through governance, workloads, and enterprise rollouts. Each level builds on the last with adaptive feedback and rich analytics.
             </p>
           </div>
           <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200 shadow-lg shadow-primary/10 md:flex-row md:items-center md:justify-between">
@@ -156,7 +168,9 @@ export default function QuizSelection() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-white">Level progress</p>
-                <p>{completedLevels} of {orderedQuizzes.length} levels completed</p>
+                <p>
+                  {completedLevels} of {orderedQuizzes.length} levels completed
+                </p>
               </div>
             </div>
             <div className="flex flex-1 flex-col gap-2">
@@ -178,11 +192,35 @@ export default function QuizSelection() {
             const questionCount = quiz.questions.length;
             const isRecommended = recommendedQuiz?.id === quiz.id;
             const isActive = hasOngoingSession && currentQuiz?.id === quiz.id;
-            const isComplete = completedLevels >= quiz.level;
+            const isComplete = completedLevels >= (quiz.level ?? index + 1);
             const shareConfig = shareSettings[quiz.id] ?? { isPublic: false };
             const shareLink = getShareLink(quiz.id);
             const isPublic = shareConfig.isPublic;
             const isCopied = copiedQuizId === quiz.id;
+            const displayLevel = quiz.level ?? index + 1;
+            const isLiked = Boolean(user?.likedQuizIds.includes(quiz.id));
+            const baseLikes = quiz.communityLikes ?? 0;
+            const likeTotal = baseLikes + (isLiked ? 1 : 0);
+
+            const catalogCreator = creators.find((candidate) => candidate.id === quiz.creatorId);
+            const ownerCreator = user && quiz.creatorId === user.id
+              ? {
+                  id: user.id,
+                  name: user.name,
+                  role: "Votre création",
+                  avatarInitials: user.name
+                    .split(" ")
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part[0]?.toUpperCase())
+                    .join(""),
+                  avatarColor: user.avatarColor ?? "from-primary/40 to-primary/20"
+                }
+              : null;
+            const creator = catalogCreator ?? ownerCreator;
+            const creatorId = creator?.id ?? quiz.creatorId;
+            const isOwnCreator = Boolean(user && creatorId && user.id === creatorId);
+            const isFollowingCreator = Boolean(creatorId && user?.followingCreatorIds.includes(creatorId));
 
             return (
               <article
@@ -193,10 +231,10 @@ export default function QuizSelection() {
                 }`}
               >
                 <div className="flex flex-col gap-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <DifficultyIcon index={index} />
-                      <div className="flex flex-col items-end gap-2 text-right">
-                        <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+                  <div className="flex items-start justify-between gap-4">
+                    <DifficultyIcon index={index} />
+                    <div className="flex flex-col items-end gap-2 text-right">
+                      <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
                         Level {displayLevel}
                         <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-100">
                           {quiz.difficulty ?? "custom"}
@@ -311,9 +349,7 @@ export default function QuizSelection() {
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Sharing</p>
                           <p className="text-xs text-slate-300">
-                            {isPublic
-                              ? "Public — anyone with the link can join"
-                              : "Private — only visible to you"}
+                            {isPublic ? "Public — anyone with the link can join" : "Private — only visible to you"}
                           </p>
                         </div>
                         <button
@@ -359,15 +395,13 @@ export default function QuizSelection() {
                               </svg>
                             </button>
                           </div>
-                          <p className="text-xs text-slate-400">
-                            Send this link to teammates to invite them to the quiz.
-                          </p>
+                          <p className="text-xs text-slate-400">Send this link to teammates to invite them to the quiz.</p>
                         </div>
                       ) : (
-                        <p className="text-xs text-slate-400">
-                          Make the quiz public to generate a shareable invite link.
-                        </p>
+                        <p className="text-xs text-slate-400">Make the quiz public to generate a shareable invite link.</p>
                       )}
+                    </div>
+                  </div>
                   <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-3">
@@ -380,24 +414,20 @@ export default function QuizSelection() {
                           {creator?.avatarInitials ?? "QQ"}
                         </span>
                         <div>
-                          <p className="text-sm font-semibold text-white">
-                            {creator?.name ?? "Créateur invité"}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {creator?.role ?? "Expert Fabric"}
-                          </p>
+                          <p className="text-sm font-semibold text-white">{creator?.name ?? "Créateur invité"}</p>
+                          <p className="text-xs text-slate-400">{creator?.role ?? "Expert Fabric"}</p>
                         </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => {
-                          if (!creator) return;
+                          if (!creatorId) return;
                           if (!user) {
                             openAuthDialog();
                             return;
                           }
                           if (isOwnCreator) return;
-                          toggleFollowCreator(creator.id);
+                          toggleFollowCreator(creatorId);
                         }}
                         disabled={isOwnCreator}
                         className={`inline-flex items-center gap-2 rounded-full border px-4 py-1 text-xs font-semibold uppercase tracking-wider transition ${
@@ -410,27 +440,6 @@ export default function QuizSelection() {
                       </button>
                     </div>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <button
-                        type="button"
-                        onClick={() => handleStart(quiz.id)}
-                        aria-label={`Start the ${quiz.title} quiz`}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                      >
-                        {isActive ? "Resume quiz" : "Start quiz"}
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="h-4 w-4"
-                          aria-hidden="true"
-                        >
-                          <path d="m9 18 6-6-6-6" />
-                        </svg>
-                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -449,9 +458,10 @@ export default function QuizSelection() {
                       >
                         <span aria-hidden>{isLiked ? "❤️" : "🤍"}</span>
                         <span>
-                          {likeTotal} {likeTotal > 1 ? "likes" : "like"}
+                          {likeTotal} {likeTotal === 1 ? "like" : "likes"}
                         </span>
                       </button>
+                      <p className="text-xs text-slate-400">Code PIN : {quiz.accessCode}</p>
                     </div>
                   </div>
                 </div>
