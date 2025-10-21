@@ -28,6 +28,9 @@ export type Quiz = {
   difficulty: QuizDifficulty;
   focusArea: string;
   recommendedFor: string;
+  creatorId: string;
+  communityLikes: number;
+  tags?: string[];
   questions: Question[];
 };
 

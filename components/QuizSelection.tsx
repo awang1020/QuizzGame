@@ -2,7 +2,9 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { creators } from "@/data/creators";
 import { useQuiz } from "@/context/QuizContext";
+import { useUser } from "@/context/UserContext";
 
 const iconStyles = [
   "from-sky-400/80 via-blue-500/70 to-indigo-500/80",
@@ -44,6 +46,7 @@ function formatDuration(seconds?: number) {
 export default function QuizSelection() {
   const router = useRouter();
   const { quizzes, startQuiz, currentQuiz, hasOngoingSession, isQuizComplete, hasStarted } = useQuiz();
+  const { user, toggleLikeQuiz, toggleFollowCreator, openAuthDialog } = useUser();
 
   const orderedQuizzes = useMemo(() => {
     return [...quizzes].sort((a, b) => a.level - b.level);
@@ -140,6 +143,11 @@ export default function QuizSelection() {
             const isRecommended = recommendedQuiz?.id === quiz.id;
             const isActive = hasOngoingSession && currentQuiz?.id === quiz.id;
             const isComplete = completedLevels >= quiz.level;
+            const creator = creators.find((item) => item.id === quiz.creatorId);
+            const isLiked = Boolean(user?.likedQuizIds.includes(quiz.id));
+            const likeTotal = quiz.communityLikes + (isLiked ? 1 : 0);
+            const isFollowingCreator = creator ? Boolean(user?.followingCreatorIds.includes(creator.id)) : false;
+            const isOwnCreator = creator ? user?.id === creator.id : false;
 
             return (
               <article
@@ -232,27 +240,92 @@ export default function QuizSelection() {
                       </div>
                     </div>
                   </dl>
-                  <button
-                    type="button"
-                    onClick={() => handleStart(quiz.id)}
-                    aria-label={`Start the ${quiz.title} quiz`}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                  >
-                    {isActive ? "Resume quiz" : "Start quiz"}
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-4 w-4"
-                      aria-hidden="true"
-                    >
-                      <path d="m9 18 6-6-6-6" />
-                    </svg>
-                  </button>
+                  <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-white bg-gradient-to-br ${
+                            creator?.avatarColor ?? "from-slate-500 to-slate-700"
+                          }`}
+                          aria-hidden="true"
+                        >
+                          {creator?.avatarInitials ?? "QQ"}
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            {creator?.name ?? "Créateur invité"}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {creator?.role ?? "Expert Fabric"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!creator) return;
+                          if (!user) {
+                            openAuthDialog();
+                            return;
+                          }
+                          if (isOwnCreator) return;
+                          toggleFollowCreator(creator.id);
+                        }}
+                        disabled={isOwnCreator}
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-1 text-xs font-semibold uppercase tracking-wider transition ${
+                          isFollowingCreator
+                            ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-200"
+                            : "border-white/10 bg-white/5 text-slate-100 hover:border-primary/50 hover:text-white"
+                        } ${isOwnCreator ? "opacity-50" : ""}`.trim()}
+                      >
+                        {isOwnCreator ? "Vous" : isFollowingCreator ? "Suivi" : "Suivre"}
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <button
+                        type="button"
+                        onClick={() => handleStart(quiz.id)}
+                        aria-label={`Start the ${quiz.title} quiz`}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                      >
+                        {isActive ? "Resume quiz" : "Start quiz"}
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4"
+                          aria-hidden="true"
+                        >
+                          <path d="m9 18 6-6-6-6" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!user) {
+                            openAuthDialog();
+                            return;
+                          }
+                          toggleLikeQuiz(quiz.id);
+                        }}
+                        aria-pressed={isLiked}
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                          isLiked
+                            ? "border-rose-400/60 bg-rose-500/10 text-rose-100"
+                            : "border-white/10 bg-white/5 text-slate-100 hover:border-primary/50 hover:text-white"
+                        }`}
+                      >
+                        <span aria-hidden>{isLiked ? "❤️" : "🤍"}</span>
+                        <span>
+                          {likeTotal} {likeTotal > 1 ? "likes" : "like"}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </article>
             );

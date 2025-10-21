@@ -1,12 +1,24 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuiz } from "@/context/QuizContext";
+import { useUser } from "@/context/UserContext";
 
 export default function ResultsSummary() {
   const router = useRouter();
   const { currentQuiz, responses, score, totalQuestions, resetQuiz, startQuiz } = useQuiz();
+  const { recordQuizCompletion } = useUser();
+  const hasRecordedRef = useRef(false);
+
+  useEffect(() => {
+    if (!currentQuiz) return;
+    if (hasRecordedRef.current) return;
+
+    recordQuizCompletion(currentQuiz.id, score, totalQuestions);
+    hasRecordedRef.current = true;
+  }, [currentQuiz, recordQuizCompletion, score, totalQuestions]);
 
   const handleRetry = () => {
     resetQuiz();

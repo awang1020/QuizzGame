@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import QuizProviders from "./providers";
+import SiteHeader from "@/components/SiteHeader";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,7 +19,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <QuizProviders>{children}</QuizProviders>
+        <QuizProviders>
+          <SiteHeader />
+          {children}
+        </QuizProviders>
       </body>
     </html>
   );
