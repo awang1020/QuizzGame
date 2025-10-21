@@ -295,23 +295,19 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("quizzyquizz-progress", JSON.stringify(state));
   }, [currentQuizId, currentQuestionIndex, hasStarted, isRestored, questionOrder, responses]);
 
-  const startQuiz = (quizId: string) => {
-    setCurrentQuizId(quizId);
-    setCurrentQuestionIndex(0);
-    setQuestionOrder(() => {
+  const startQuiz = useCallback(
+    (quizId: string) => {
       const quiz = quizzes.find((item) => item.id === quizId);
-      if (!quiz) return [];
-
-      return shuffle(quiz.questions.map((question) => question.id));
-    });
-    setResponses({});
-    setHasStarted(true);
-  };
+      if (!quiz) {
+        return false;
+      }
 
       setCurrentQuizId(quizId);
       setCurrentQuestionIndex(0);
+      setQuestionOrder(shuffle(quiz.questions.map((question) => question.id)));
       setResponses({});
       setHasStarted(true);
+
       return true;
     },
     [quizzes]
