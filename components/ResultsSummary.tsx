@@ -2,11 +2,22 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 import { useQuiz } from "@/context/QuizContext";
 
 export default function ResultsSummary() {
   const router = useRouter();
-  const { currentQuiz, responses, score, totalQuestions, resetQuiz, startQuiz } = useQuiz();
+  const {
+    currentQuiz,
+    responses,
+    score,
+    totalQuestions,
+    resetQuiz,
+    startQuiz,
+    questionDurations,
+    averageQuestionTime,
+    sessionDurationSeconds
+  } = useQuiz();
 
   const handleRetry = () => {
     resetQuiz();
@@ -34,6 +45,22 @@ export default function ResultsSummary() {
             That&apos;s {(totalQuestions === 0 ? 0 : Math.round((score / totalQuestions) * 100))}% accuracy.
           </p>
         </div>
+        <dl className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Temps total</dt>
+            <dd className="mt-2 text-lg font-semibold text-white">
+              {sessionDurationSeconds !== null ? formatSeconds(sessionDurationSeconds) : "—"}
+            </dd>
+            <p className="mt-1 text-xs text-slate-400">Durée cumulée pour l&apos;ensemble du quiz.</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Temps moyen / question</dt>
+            <dd className="mt-2 text-lg font-semibold text-white">
+              {averageQuestionTime > 0 ? formatSeconds(averageQuestionTime) : "—"}
+            </dd>
+            <p className="mt-1 text-xs text-slate-400">Basé sur le temps passé avant chaque soumission.</p>
+          </div>
+        </dl>
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <button
             onClick={handleRetry}
@@ -70,6 +97,11 @@ export default function ResultsSummary() {
                     {isCorrect ? "Correct" : "Incorrect"}
                   </span>
                 </div>
+                {questionDurations[question.id] !== undefined && (
+                  <p className="mt-2 text-xs uppercase tracking-wide text-slate-400">
+                    Temps passé : {formatSeconds(questionDurations[question.id])}
+                  </p>
+                )}
                 <ul className="mt-4 grid gap-2 text-sm text-slate-300">
                   {question.options.map((option) => {
                     const isSelected = response?.selectedOptionIds.includes(option.id);
@@ -107,6 +139,22 @@ export default function ResultsSummary() {
           and add new data in <code className="font-mono text-xs">data/quizzes.ts</code>.
         </p>
       </section>
+      <AnalyticsDashboard />
     </div>
   );
+}
+
+function formatSeconds(value: number) {
+  if (!Number.isFinite(value)) {
+    return "—";
+  }
+
+  const rounded = Math.max(0, value);
+  if (rounded >= 60) {
+    const minutes = Math.floor(rounded / 60);
+    const seconds = Math.round(rounded % 60);
+    return `${minutes} min ${seconds.toString().padStart(2, "0")} s`;
+  }
+
+  return `${rounded.toFixed(1)} s`;
 }

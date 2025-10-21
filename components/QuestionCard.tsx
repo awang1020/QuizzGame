@@ -9,15 +9,25 @@ type Props = {
 };
 
 export default function QuestionCard({ questionId, onAnswered }: Props) {
-  const { currentQuiz, currentQuestionIndex, responses, submitAnswer, goToNextQuestion, totalQuestions } = useQuiz();
+  const {
+    currentQuiz,
+    currentQuestionIndex,
+    responses,
+    submitAnswer,
+    goToNextQuestion,
+    totalQuestions,
+    recordQuestionDuration
+  } = useQuiz();
   const question = currentQuiz.questions.find((item) => item.id === questionId);
   const storedResponse = responses[questionId];
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>(storedResponse?.selectedOptionIds ?? []);
   const [feedback, setFeedback] = useState<string | null>(storedResponse ? getFeedback(storedResponse.isCorrect) : null);
+  const [questionStartTime, setQuestionStartTime] = useState<number | null>(storedResponse ? null : Date.now());
 
   useEffect(() => {
     setSelectedOptionIds(storedResponse?.selectedOptionIds ?? []);
     setFeedback(storedResponse ? getFeedback(storedResponse.isCorrect) : null);
+    setQuestionStartTime(storedResponse ? null : Date.now());
   }, [storedResponse, questionId]);
 
   if (!question) {
@@ -39,6 +49,11 @@ export default function QuestionCard({ questionId, onAnswered }: Props) {
     const response = submitAnswer(question.id, selectedOptionIds);
     if (!response) return;
     setFeedback(getFeedback(response.isCorrect));
+    if (questionStartTime !== null) {
+      const elapsedSeconds = (Date.now() - questionStartTime) / 1000;
+      recordQuestionDuration(question.id, elapsedSeconds);
+      setQuestionStartTime(null);
+    }
   };
 
   const handleNext = () => {
