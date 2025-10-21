@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 import { useQuiz } from "@/context/QuizContext";
 
 export default function ResultsSummary() {
@@ -35,6 +36,22 @@ export default function ResultsSummary() {
             question{totalQuestions === 1 ? "" : "s"}.
           </p>
         </div>
+        <dl className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Temps total</dt>
+            <dd className="mt-2 text-lg font-semibold text-white">
+              {sessionDurationSeconds !== null ? formatSeconds(sessionDurationSeconds) : "—"}
+            </dd>
+            <p className="mt-1 text-xs text-slate-400">Durée cumulée pour l&apos;ensemble du quiz.</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Temps moyen / question</dt>
+            <dd className="mt-2 text-lg font-semibold text-white">
+              {averageQuestionTime > 0 ? formatSeconds(averageQuestionTime) : "—"}
+            </dd>
+            <p className="mt-1 text-xs text-slate-400">Basé sur le temps passé avant chaque soumission.</p>
+          </div>
+        </dl>
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <button
             onClick={handleRetry}
@@ -145,6 +162,22 @@ export default function ResultsSummary() {
           to build, duplicate, and share interactive quizzes tailored to your audience.
         </p>
       </section>
+      <AnalyticsDashboard />
     </div>
   );
+}
+
+function formatSeconds(value: number) {
+  if (!Number.isFinite(value)) {
+    return "—";
+  }
+
+  const rounded = Math.max(0, value);
+  if (rounded >= 60) {
+    const minutes = Math.floor(rounded / 60);
+    const seconds = Math.round(rounded % 60);
+    return `${minutes} min ${seconds.toString().padStart(2, "0")} s`;
+  }
+
+  return `${rounded.toFixed(1)} s`;
 }

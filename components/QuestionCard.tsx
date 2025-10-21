@@ -24,7 +24,15 @@ const formatTime = (seconds: number) => {
 };
 
 export default function QuestionCard({ questionId, onAnswered }: Props) {
-  const { currentQuiz, currentQuestionIndex, responses, submitAnswer, goToNextQuestion, totalQuestions } = useQuiz();
+  const {
+    currentQuiz,
+    currentQuestionIndex,
+    responses,
+    submitAnswer,
+    goToNextQuestion,
+    totalQuestions,
+    recordQuestionDuration
+  } = useQuiz();
   const question = currentQuiz.questions.find((item) => item.id === questionId);
   const storedResponse = responses[questionId];
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>(storedResponse?.selectedOptionIds ?? []);
