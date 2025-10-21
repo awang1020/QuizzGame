@@ -1,9 +1,13 @@
 import LandingHero from "@/components/LandingHero";
+import BeginnerFabricQuiz from "@/components/BeginnerFabricQuiz";
 
 export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-6xl flex-col">
       <LandingHero />
+      <section className="w-full px-6 pb-16">
+        <BeginnerFabricQuiz />
+      </section>
       <section className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pb-20">
         <h2 className="text-3xl font-semibold text-white">Why teams choose QuizzyQuizz</h2>
         <div className="grid gap-6 md:grid-cols-3">
