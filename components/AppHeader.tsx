@@ -5,8 +5,7 @@ import { usePathname } from "next/navigation";
 
 const navigation = [
   { href: "/", label: "Accueil" },
-  { href: "/studio", label: "Mon studio" },
-  { href: "/studio/create", label: "Créer un quiz" }
+  { href: "/studio", label: "Mon studio" }
 ];
 
 export default function AppHeader() {
